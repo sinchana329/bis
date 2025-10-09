@@ -1,0 +1,71 @@
+import random
+
+# --- Step 1: Define the function to optimize ---
+def fitness_function(x, y):
+    # Example: Sphere function (min at x=0, y=0)
+    return x**2 + y**2
+
+# --- Step 2: Initialize PSO parameters ---
+num_particles = 30
+max_iterations = 100
+w = 0.7              # inertia weight
+c1 = 1.5             # cognitive coefficient
+c2 = 1.5             # social coefficient
+x_min, x_max = -10, 10
+v_min, v_max = -1, 1
+
+# --- Step 3: Initialize particles ---
+particles = []
+for _ in range(num_particles):
+    particle = {
+        'position': [random.uniform(x_min, x_max), random.uniform(x_min, x_max)],
+        'velocity': [random.uniform(v_min, v_max), random.uniform(v_min, v_max)],
+    }
+    particle['best_position'] = list(particle['position'])
+    particle['best_fitness'] = fitness_function(*particle['position'])
+    particles.append(particle)
+
+# --- Initialize global best ---
+global_best_position = min(particles, key=lambda p: p['best_fitness'])['best_position']
+global_best_fitness = fitness_function(*global_best_position)
+
+# --- Step 4–6: PSO main loop ---
+for iteration in range(max_iterations):
+    for particle in particles:
+        # Evaluate fitness
+        fitness = fitness_function(*particle['position'])
+
+        # Update personal best
+        if fitness < particle['best_fitness']:
+            particle['best_fitness'] = fitness
+            particle['best_position'] = list(particle['position'])
+
+        # Update global best
+        if fitness < global_best_fitness:
+            global_best_fitness = fitness
+            global_best_position = list(particle['position'])
+
+    # Update velocity and position
+    for particle in particles:
+        for i in range(2):  # 2D example
+            r1, r2 = random.random(), random.random()
+            cognitive = c1 * r1 * (particle['best_position'][i] - particle['position'][i])
+            social = c2 * r2 * (global_best_position[i] - particle['position'][i])
+            particle['velocity'][i] = w * particle['velocity'][i] + cognitive + social
+
+            # Clamp velocity
+            particle['velocity'][i] = max(min(particle['velocity'][i], v_max), v_min)
+
+            # Update position
+            particle['position'][i] += particle['velocity'][i]
+
+            # Clamp position
+            particle['position'][i] = max(min(particle['position'][i], x_max), x_min)
+
+    # Print progress
+    print(f"Iteration {iteration+1}/{max_iterations}, Best Fitness: {global_best_fitness:.6f}")
+
+# --- Step 7: Output the best solution ---
+print("\nOptimal Solution Found:")
+print("Best Position:", global_best_position)
+print("Best Fitness Value:", global_best_fitness)
