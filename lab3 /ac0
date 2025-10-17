@@ -1,0 +1,134 @@
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+
+# ------------------------------
+# Step 1: Define the Problem
+# ------------------------------
+# Coordinates of the cities
+cities = np.array([
+    [0, 0],   # City 0
+    [1, 5],   # City 1
+    [5, 2],   # City 2
+    [6, 6],   # City 3
+    [8, 3],   # City 4
+    [7, 9],   # City 5
+    [2, 7],   # City 6
+    [3, 3]    # City 7
+])
+
+num_cities = len(cities)
+
+# Distance matrix
+def distance_matrix(coords):
+    n = len(coords)
+    dist = np.zeros((n, n))
+    for i in range(n):
+        for j in range(n):
+            dist[i][j] = np.linalg.norm(coords[i] - coords[j])
+    return dist
+
+distances = distance_matrix(cities)
+
+# ------------------------------
+# Step 2: Initialize Parameters
+# ------------------------------
+num_ants = 10
+num_iterations = 100
+alpha = 1.0        # Pheromone importance
+beta = 5.0         # Distance importance
+rho = 0.5          # Evaporation rate
+Q = 100            # Constant for pheromone update
+
+# Initial pheromone values
+pheromone = np.ones((num_cities, num_cities))
+
+# Heuristic information (1/distance)
+heuristic = 1 / (distances + np.diag([np.inf]*num_cities))
+
+# ------------------------------
+# Step 3: Construct Solutions
+# ------------------------------
+def construct_solution(pheromone, heuristic):
+    paths = []
+    lengths = []
+
+    for _ in range(num_ants):
+        unvisited = list(range(num_cities))
+        path = [random.choice(unvisited)]
+        unvisited.remove(path[0])
+
+        while unvisited:
+            current = path[-1]
+            probs = []
+
+            for next_city in unvisited:
+                tau = pheromone[current][next_city] ** alpha
+                eta = heuristic[current][next_city] ** beta
+                probs.append(tau * eta)
+
+            probs = np.array(probs)
+            probs /= probs.sum()
+
+            next_city = random.choices(unvisited, weights=probs, k=1)[0]
+            path.append(next_city)
+            unvisited.remove(next_city)
+
+        path.append(path[0])  # Return to start
+        length = sum(distances[path[i]][path[i+1]] for i in range(num_cities))
+        paths.append(path)
+        lengths.append(length)
+
+    return paths, lengths
+
+# ------------------------------
+# Step 4: Update Pheromones
+# ------------------------------
+def update_pheromones(pheromone, paths, lengths):
+    pheromone *= (1 - rho)  # Evaporation
+
+    for path, length in zip(paths, lengths):
+        for i in range(num_cities):
+            from_city = path[i]
+            to_city = path[i + 1]
+            pheromone[from_city][to_city] += Q / length
+            pheromone[to_city][from_city] += Q / length  # Undirected graph
+
+    return pheromone
+
+# ------------------------------
+# Step 5: Iterate
+# ------------------------------
+best_path = None
+best_length = float('inf')
+
+for iteration in range(num_iterations):
+    paths, lengths = construct_solution(pheromone, heuristic)
+    pheromone = update_pheromones(pheromone, paths, lengths)
+
+    min_length = min(lengths)
+    if min_length < best_length:
+        best_length = min_length
+        best_path = paths[lengths.index(min_length)]
+
+    if (iteration + 1) % 10 == 0:
+        print(f"Iteration {iteration+1}: Best Length = {best_length:.2f}")
+
+# ------------------------------
+# Visualization
+# ------------------------------
+def plot_path(path, cities, length):
+    plt.figure(figsize=(8, 6))
+    for i in range(len(path)-1):
+        start = cities[path[i]]
+        end = cities[path[i+1]]
+        plt.plot([start[0], end[0]], [start[1], end[1]], 'b-')
+        plt.plot(start[0], start[1], 'ro')
+        plt.text(start[0], start[1], str(path[i]), fontsize=12)
+    plt.plot(cities[path[-1]][0], cities[path[-1]][1], 'ro')
+    plt.text(cities[path[-1]][0], cities[path[-1]][1], str(path[-1]), fontsize=12)
+    plt.title(f"Best Path Found (Length = {length:.2f})")
+    plt.grid(True)
+    plt.show()
+
+plot_path(best_path, cities, best_length)
